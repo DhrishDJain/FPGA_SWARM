@@ -1,0 +1,1219 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>FPGA Swarm Dashboard</title>
+    <style>
+      :root {
+        --bg: #1f1d1d;
+        --bg2: #242222;
+        --bg3: #2a2727;
+        --border: #423d3d;
+        --accent: #FFD700;
+        --text: #e0e0e0;
+        --dim: #999999;
+        --green: #00ff88;
+        --red: #ff4444;
+        --gold: #ffd700;
+        --sw: 350px;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        overflow: hidden;
+      }
+
+      /* Header */
+      #hdr {
+        height: 42px;
+        background: var(--bg2);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        gap: 12px;
+      }
+      #hdr h1 {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--accent);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      #ap-hint {
+        font-size: 10px;
+        color: var(--dim);
+      }
+      #ws-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--red);
+        margin-left: auto;
+        transition: background 0.3s;
+      }
+      #ws-dot.on {
+        background: var(--green);
+        animation: blink 2s infinite;
+      }
+      @keyframes blink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+      #ws-lbl {
+        font-size: 10px;
+        color: var(--dim);
+      }
+
+      /* Body */
+      #body {
+        display: flex;
+        height: calc(100vh - 42px);
+      }
+
+      /* Map */
+      #map-wrap {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        background: var(--bg);
+      }
+      #mc {
+        position: absolute;
+        top: 0;
+        left: 0;
+        cursor: crosshair;
+      }
+      #map-info {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        pointer-events: none;
+      }
+      .badge {
+        background: rgba(13, 15, 26, 0.85);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 3px 9px;
+        font-size: 10px;
+        color: var(--dim);
+      }
+      .badge b {
+        color: var(--accent);
+      }
+      #survivor-hint {
+        display: none;
+        background: rgba(58, 26, 0, 0.9);
+        border-color: #7a4400;
+        color: var(--gold);
+      }
+
+      /* Sidebar */
+      #sb {
+        width: var(--sw);
+        background: var(--bg2);
+        border-left: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .sec {
+        border-bottom: 1px solid var(--border);
+      }
+      .sec-title {
+        padding: 6px 12px;
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--dim);
+        background: var(--bg3);
+      }
+
+      /* Slave cards */
+      #slaves {
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 5px 10px;
+        gap: 10px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+      }
+      #slaves::-webkit-scrollbar {
+        height: 5px;
+      }
+      #slaves::-webkit-scrollbar-thumb {
+        background: var(--border);
+      }
+      #no-sl {
+        padding: 14px;
+        font-size: 11px;
+        color: var(--dim);
+        text-align: center;
+        width: 100%;
+      }
+      .sc {
+        flex: 0 0 160px;
+        padding: 9px 12px;
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        transition: background 0.15s;
+      }
+      .sc:hover {
+        background: var(--border);
+      }
+      .sc.stale .sn {
+        color: var(--dim);
+      }
+      .sc.stale .sd {
+        opacity: 0.3;
+      }
+      .sh {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 7px;
+      }
+      .sd {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .sn {
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .ss {
+        margin-left: auto;
+        font-size: 9px;
+        padding: 1px 6px;
+        border-radius: 999px;
+        background: var(--bg2);
+        color: var(--accent);
+      }
+      .sage {
+        font-size: 9px;
+        color: var(--dim);
+        display: block;
+        margin-top: 2px;
+      }
+      .sg {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 3px;
+      }
+      .sf {
+        font-size: 10px;
+      }
+      .sl {
+        color: var(--dim);
+        display: inline-block;
+        width: 35px;
+      }
+      .sv {
+        color: var(--text);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Coverage */
+      #cov {
+        padding: 9px 12px;
+      }
+      .cr {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10px;
+        padding: 3px 0;
+        border-bottom: 1px solid var(--bg3);
+      }
+      .cl {
+        color: var(--dim);
+      }
+      .cv {
+        font-weight: 600;
+      }
+      .pb {
+        height: 3px;
+        background: var(--bg3);
+        border-radius: 2px;
+        margin: 7px 0 2px;
+        overflow: hidden;
+      }
+      .pf {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), var(--green));
+        border-radius: 2px;
+        transition: width 0.5s;
+      }
+
+      /* Commands */
+      #cmd {
+        padding: 9px 12px;
+      }
+      .trow {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 8px;
+      }
+      .trow label {
+        font-size: 10px;
+        color: var(--dim);
+      }
+      #tsel {
+        flex: 1;
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 3px 7px;
+        border-radius: 4px;
+        font-size: 11px;
+      }
+      .dpad {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 3px;
+        margin-bottom: 7px;
+      }
+      .db {
+        aspect-ratio: 1;
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 17px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          background 0.1s,
+          transform 0.08s;
+        user-select: none;
+      }
+      .db:hover {
+        background: #2a3860;
+      }
+      .db:active {
+        background: #3a4880;
+        transform: scale(0.94);
+      }
+      .db.stop {
+        background: #3a0a0a;
+        color: #ff7777;
+      }
+      .db.stop:hover {
+        background: #550a0a;
+      }
+      .db.emp {
+        visibility: hidden;
+      }
+      .srvbtn {
+        width: 100%;
+        padding: 7px;
+        background: #1a0a00;
+        border: 1px solid #4a2000;
+        border-radius: 6px;
+        color: var(--gold);
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .srvbtn:hover {
+        background: #2a1400;
+      }
+      .srvbtn.active {
+        background: #3a1a00;
+        border-color: var(--gold);
+      }
+
+      /* Assign Block */
+      .nav-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 6px;
+      }
+      .nav-row label {
+        font-size: 10px;
+        color: var(--dim);
+        width: 20px;
+        flex-shrink: 0;
+      }
+      .nav-inp {
+        flex: 1;
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 3px 7px;
+        border-radius: 4px;
+        font-size: 11px;
+      }
+      .nav-btns {
+        display: flex;
+        gap: 5px;
+        margin-top: 6px;
+      }
+      .nav-go {
+        flex: 1;
+        padding: 6px;
+        background: #0a1a0a;
+        border: 1px solid #1a5a1a;
+        border-radius: 6px;
+        color: var(--green);
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .nav-go:hover { background: #122012; }
+      .nav-stop {
+        flex: 1;
+        padding: 6px;
+        background: #1a0a0a;
+        border: 1px solid #5a1a1a;
+        border-radius: 6px;
+        color: var(--red);
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .nav-stop:hover { background: #201212; }
+
+      /* Legend */
+      #leg {
+        padding: 7px 12px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+      }
+      .li {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 10px;
+        color: var(--dim);
+      }
+      .ld {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .ls {
+        width: 9px;
+        height: 9px;
+        border-radius: 2px;
+        flex-shrink: 0;
+      }
+
+      /* Toast */
+      #toast {
+        position: fixed;
+        bottom: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 7px 15px;
+        font-size: 11px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s;
+        z-index: 100;
+      }
+      #toast.show {
+        opacity: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hdr">
+      <h1>⬡ FPGA Swarm Dashboard</h1>
+      <span id="ap-hint"
+        >WiFi: SwarmCompanion &nbsp;|&nbsp; http://192.168.4.1</span
+      >
+      <div id="ws-dot"></div>
+      <span id="ws-lbl">Disconnected</span>
+    </div>
+
+    <div id="body">
+      <div id="map-wrap">
+        <canvas id="mc"></canvas>
+        <div id="map-info">
+          <div class="badge">
+            Scroll: Zoom &nbsp;|&nbsp; Drag: Pan &nbsp;|&nbsp; Middle-click:
+            Reset
+          </div>
+          <div class="badge" id="cur-badge">Cursor: —</div>
+          <div class="badge" id="survivor-hint">
+            ★ Click on map to mark survivor — press Esc to cancel
+          </div>
+        </div>
+      </div>
+
+      <div id="sb">
+        <!-- Section 1: Each slave data arranged in a horizontal row -->
+        <div class="sec" style="flex-shrink: 0;">
+          <div class="sec-title">1. Slave Data</div>
+          <div id="slaves"><div id="no-sl">No slaves connected</div></div>
+        </div>
+        <!-- Section 2: Stats of map -->
+        <div class="sec" style="flex-shrink: 0;">
+          <div class="sec-title">2. Map Stats</div>
+          <div id="cov">
+            <div class="cr">
+              <span class="cl">Blocks Searched / Total</span
+              ><span class="cv"><span id="cv-cells">0</span> / <span id="cv-total-cells">0</span></span>
+            </div>
+            <div class="cr">
+              <span class="cl">Survivors Found</span
+              ><span class="cv" id="cv-surv">0</span>
+            </div>
+            <div class="cr">
+              <span class="cl">Area Covered</span
+              ><span class="cv" id="cv-area">0 m²</span>
+            </div>
+            <div class="cr">
+              <span class="cl">Area to be Covered</span
+              ><span class="cv" id="cv-area-remain">0 m²</span>
+            </div>
+            <div class="pb">
+              <div class="pf" id="cv-bar" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Section 3: Slaves and their current task -->
+        <div class="sec" style="flex: 1; overflow-y: auto;">
+          <div class="sec-title">3. Slaves & Current Task</div>
+          <div id="tasks-list" style="padding: 9px 12px; display: flex; flex-direction: column; gap: 8px;">
+            <div style="color: var(--dim); font-size: 11px; text-align: center;">No active tasks</div>
+          </div>
+        </div>
+        <!-- Keep Legend and Manual controls at the bottom implicitly or condensed -->
+        <div style="border-top: 1px solid var(--border); flex-shrink: 0;">
+          <div class="sec-title">Legend & Controls</div>
+          <div id="leg" style="padding: 7px 12px; display: flex; flex-wrap: wrap; gap: 7px; border-bottom: 1px solid var(--border);">
+            <div class="li"><div class="ls" style="background: rgba(255,215,0,0.3); border: 1.5px dashed var(--accent)"></div>Slave area</div>
+            <div class="li"><div class="ls" style="background: rgba(255,255,255,0.18)"></div>Unsearched</div>
+            <div class="li"><div class="ld" style="background: #ff4444"></div>Obstacle</div>
+            <div class="li"><div class="ld" style="background: #ff2222"></div>Survivor</div>
+          </div>
+          <div style="padding: 9px 12px; display: flex; gap: 8px;">
+            <button class="srvbtn" id="srvbtn" onclick="toggleSurvivorMode()" style="flex: 1;">
+              ★ Mark Survivor
+            </button>
+            <button class="srvbtn" style="flex: 1;" onclick="document.getElementById('man-cmd').style.display = document.getElementById('man-cmd').style.display === 'none' ? 'flex' : 'none'">
+              Manual Tools
+            </button>
+          </div>
+          <div id="man-cmd" style="padding: 0 12px 9px 12px; display: none; flex-direction: column; gap: 8px;">
+            <div style="margin-bottom:8px">
+              <div class="trow">
+                <select id="tsel" style="width:50%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:3px;border-radius:4px;font-size:11px"><option value="all">All Slaves</option></select>
+                <select id="nav-tsel" style="width:50%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:3px;border-radius:4px;font-size:11px"><option value="0">Slave 0</option></select>
+              </div>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <div class="dpad" style="flex:1;">
+                <div class="db emp"></div><div class="db" onclick="sendCmd('f')">▲</div><div class="db emp"></div>
+                <div class="db" onclick="sendCmd('l')">◄</div><div class="db stop" onclick="sendCmd('s')">■</div><div class="db" onclick="sendCmd('r')">►</div>
+                <div class="db emp"></div><div class="db" onclick="sendCmd('b')">▼</div><div class="db emp"></div>
+              </div>
+              <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
+                <input class="nav-inp" id="nav-tx" type="number" value="0" step="10" placeholder="X cm">
+                <input class="nav-inp" id="nav-ty" type="number" value="0" step="10" placeholder="Y cm">
+                <div style="display:flex; gap:4px;"><button class="nav-go" onclick="assignBlock()" style="padding:4px;font-size:10px;flex:1;">Go</button><button class="nav-stop" onclick="stopNav()" style="padding:4px;font-size:10px;flex:1;">Stop</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <script>
+      // ── Constants ──
+      const COLORS = [
+        "#00C8FF",
+        "#FF6B35",
+        "#A8FF3E",
+        "#FF3EA8",
+        "#FFE53E",
+        "#B03EFF",
+      ];
+      const TRAIL = 500,
+        LIDAR_MAX = 500,
+        STALE = 5000;
+        
+      // Pre-marked Area Boundary configuration (in cm)
+      let ARENA_W = 3000,
+          ARENA_H = 3000,
+          GRID = 30;
+
+      // ── State ──
+      let slaves = {},
+        survivors = [],
+        grid = {},
+        survivorMode = false,
+        ws = null;
+
+      // ── WebSocket ──
+      function connectWS() {
+        const url = `ws://${location.hostname}:81`;
+        ws = new WebSocket(url);
+        ws.onopen = () => {
+          document.getElementById("ws-dot").classList.add("on");
+          document.getElementById("ws-lbl").textContent = "Connected";
+          toast("WebSocket connected");
+        };
+        ws.onclose = () => {
+          document.getElementById("ws-dot").classList.remove("on");
+          document.getElementById("ws-lbl").textContent = "Reconnecting…";
+          setTimeout(connectWS, 2000);
+        };
+        ws.onerror = () => ws.close();
+        ws.onmessage = (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (data.type === "arena") {
+               ARENA_W = data.size;
+               ARENA_H = data.size;
+               GRID = data.grid;
+               toast(`Arena updated: ${data.size/100}m x ${data.size/100}m, Block: ${data.grid}cm`);
+            } else {
+               onPacket(data);
+            }
+          } catch (e) {}
+        };
+      }
+
+      function onPacket(p) {
+        const id = p.id;
+        if (!(id in slaves)) {
+          slaves[id] = {
+            id,
+            x: 0,
+            y: 0,
+            yaw: 0,
+            dist: 0,
+            lidar: 0,
+            state: "?",
+            lastSeen: 0,
+            trail: [],
+            obs: [],
+            color: COLORS[id % COLORS.length],
+          };
+          addTargetOption(id);
+        }
+        const s = slaves[id];
+        Object.assign(s, {
+          x: p.x ?? s.x,
+          y: p.y ?? s.y,
+          yaw: p.yaw ?? s.yaw,
+          dist: p.dist ?? s.dist,
+          lidar: p.lidar ?? s.lidar,
+          state: p.state ?? s.state,
+          lastSeen: Date.now(),
+        });
+        s.trail.push({ x: s.x, y: s.y });
+        if (s.trail.length > TRAIL) s.trail.shift();
+        const lcm = s.lidar / 10;
+        if (lcm > 5 && lcm < LIDAR_MAX) {
+          const r = (s.yaw * Math.PI) / 180;
+          s.obs.push({
+            x: s.x + lcm * Math.sin(r),
+            y: s.y + lcm * Math.cos(r),
+          });
+          if (s.obs.length > 2000) s.obs.shift();
+        }
+        const ck = `${Math.floor(s.x / GRID)},${Math.floor(s.y / GRID)}`;
+        grid[ck] = (grid[ck] || 0) + 1;
+        if (!s.cells) s.cells = new Set();
+        s.cells.add(ck);
+      }
+
+      function sendCmd(c) {
+        if (!ws || ws.readyState !== 1) {
+          toast("Not connected");
+          return;
+        }
+        ws.send(
+          JSON.stringify({
+            type: "cmd",
+            cmd: c,
+            target: document.getElementById("tsel").value,
+          }),
+        );
+      }
+
+      function addTargetOption(id) {
+        for (const selId of ["tsel", "nav-tsel"]) {
+          const s = document.getElementById(selId);
+          if (!s) continue;
+          if ([...s.options].some((o) => o.value == String(id))) continue;
+          const o = document.createElement("option");
+          o.value = id;
+          o.textContent = `Slave ${id}`;
+          s.appendChild(o);
+        }
+      }
+
+      function toggleSurvivorMode() {
+        survivorMode = !survivorMode;
+        document
+          .getElementById("srvbtn")
+          .classList.toggle("active", survivorMode);
+        document.getElementById("srvbtn").textContent = survivorMode
+          ? "★ Placing… (click map)"
+          : "★ Mark Survivor";
+        document.getElementById("survivor-hint").style.display = survivorMode
+          ? "block"
+          : "none";
+      }
+
+      // ── Autonomous nav assignment ──
+      function assignBlock() {
+        const slave = document.getElementById("nav-tsel").value;
+        const tx    = parseFloat(document.getElementById("nav-tx").value) || 0;
+        const ty    = parseFloat(document.getElementById("nav-ty").value) || 0;
+        fetch("/task", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slave: parseInt(slave), cmd: "g", tx, ty }),
+        })
+          .then((r) => r.json())
+          .then(() => toast(`▶ Slave ${slave} → (${tx}, ${ty}) cm`))
+          .catch(() => toast("Task send failed"));
+      }
+
+      function stopNav() {
+        const slave = document.getElementById("nav-tsel").value;
+        fetch("/task", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slave: parseInt(slave), cmd: "s", tx: 0, ty: 0 }),
+        })
+          .then(() => toast(`■ Slave ${slave} nav stopped`))
+          .catch(() => toast("Stop send failed"));
+      }
+
+      // ── Canvas ──
+      const cv = document.getElementById("mc"),
+        cx2 = cv.getContext("2d");
+      let px = 0,
+        py = 0,
+        sc = 1.5,
+        drag = false,
+        ds = {},
+        ps = {};
+
+      function resize() {
+        const w = document.getElementById("map-wrap");
+        cv.width = w.clientWidth;
+        cv.height = w.clientHeight;
+        px = cv.width / 2;
+        py = cv.height / 2;
+      }
+
+      function w2c(wx, wy) {
+        return { x: px + wx * sc, y: py - wy * sc };
+      }
+      function c2w(x, y) {
+        return { x: (x - px) / sc, y: -(y - py) / sc };
+      }
+
+      cv.addEventListener("mousedown", (e) => {
+        if (e.button === 1) {
+          resize();
+          return;
+        }
+        if (e.button === 0) {
+          if (survivorMode) {
+            const { x, y } = c2w(e.offsetX, e.offsetY);
+            survivors.push({ x, y });
+            document.getElementById("cv-surv").textContent = survivors.length;
+            if (ws && ws.readyState === 1)
+              ws.send(JSON.stringify({ type: "survivor", x, y }));
+            toggleSurvivorMode();
+            return;
+          }
+          drag = true;
+          ds = { x: e.offsetX, y: e.offsetY };
+          ps = { x: px, y: py };
+        }
+      });
+      cv.addEventListener("mousemove", (e) => {
+        const { x, y } = c2w(e.offsetX, e.offsetY);
+        document.getElementById("cur-badge").textContent =
+          `Cursor: (${x.toFixed(0)}, ${y.toFixed(0)}) cm`;
+        if (drag) {
+          px = ps.x + (e.offsetX - ds.x);
+          py = ps.y + (e.offsetY - ds.y);
+        }
+      });
+      cv.addEventListener("mouseup", () => (drag = false));
+      cv.addEventListener("mouseleave", () => (drag = false));
+      cv.addEventListener(
+        "wheel",
+        (e) => {
+          e.preventDefault();
+          const f = e.deltaY < 0 ? 1.1 : 0.9;
+          const { x: wx, y: wy } = c2w(e.offsetX, e.offsetY);
+          sc *= f;
+          px = e.offsetX - wx * sc;
+          py = e.offsetY + wy * sc;
+        },
+        { passive: false },
+      );
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && survivorMode) toggleSurvivorMode();
+      });
+
+      // ── Draw ──
+      function drawGrid() {
+        const step = 100,
+          w = cv.width,
+          h = cv.height;
+
+        // Draw Pre-marked Arena Background Highlight
+        const oArena = w2c(0, 0);
+        const wArena = ARENA_W * sc;
+        const hArena = ARENA_H * sc;
+        cx2.fillStyle = "rgba(42, 39, 39, 0.4)"; // slight lighter tint for the arena
+        cx2.fillRect(oArena.x, oArena.y - hArena, wArena, hArena);
+
+        // -- Inner Area Grid (Configurable via GRID) --
+        cx2.save();
+        // create a clipping path to ensure nothing spills out of the arena
+        cx2.beginPath();
+        cx2.rect(oArena.x, oArena.y - hArena, wArena, hArena);
+        cx2.clip();
+        
+        cx2.strokeStyle = "rgba(255, 255, 255, 0.4)"; // Bright, semi-transparent white
+        cx2.lineWidth = 1;
+        cx2.beginPath();
+        // Vertical inner lines
+        for (let gx = 0; gx <= ARENA_W; gx += GRID) {
+          const startPt = w2c(gx, 0);
+          const endPt = w2c(gx, ARENA_H);
+          cx2.moveTo(startPt.x, startPt.y);
+          cx2.lineTo(endPt.x, endPt.y);
+        }
+        // Horizontal inner lines
+        for (let gy = 0; gy <= ARENA_H; gy += GRID) {
+          const startPt = w2c(0, gy);
+          const endPt = w2c(ARENA_W, gy);
+          cx2.moveTo(startPt.x, startPt.y);
+          cx2.lineTo(endPt.x, endPt.y);
+        }
+        cx2.stroke();
+        
+        cx2.restore(); // remove clipping
+        // ---------------------------------------------
+
+        // Background Infinite Grid lines
+        cx2.strokeStyle = "#1A2040";
+        cx2.lineWidth = 0.5;
+        for (
+          let wx = Math.floor(-px / sc / step) * step;
+          px + wx * sc < w + step * sc;
+          wx += step
+        ) {
+          const x = px + wx * sc;
+          cx2.beginPath();
+          cx2.moveTo(x, 0);
+          cx2.lineTo(x, h);
+          cx2.stroke();
+          if (sc > 0.5) {
+            cx2.fillStyle = "#2A3860";
+            cx2.font = "9px Segoe UI";
+            cx2.textAlign = "center";
+            cx2.fillText(wx + "cm", x, h - 4);
+          }
+        }
+        for (
+          let wy = Math.floor((py - h) / sc / step) * step;
+          wy <= py / sc + step;
+          wy += step
+        ) {
+          const y = py - wy * sc;
+          cx2.beginPath();
+          cx2.moveTo(0, y);
+          cx2.lineTo(w, y);
+          cx2.stroke();
+          if (sc > 0.5) {
+            cx2.fillStyle = "#2A3860";
+            cx2.font = "9px Segoe UI";
+            cx2.textAlign = "left";
+            cx2.fillText(wy + "cm", 4, y - 3);
+          }
+        }
+
+        // Axes (Origin (0,0) lines)
+        cx2.strokeStyle = "#423d3d";
+        cx2.lineWidth = 1;
+        const o = w2c(0, 0);
+        cx2.beginPath();
+        cx2.moveTo(o.x, 0);
+        cx2.lineTo(o.x, h);
+        cx2.stroke();
+        cx2.beginPath();
+        cx2.moveTo(0, o.y);
+        cx2.lineTo(w, o.y);
+        cx2.stroke();
+
+        // Draw Arena Boundary Frame
+        cx2.strokeStyle = "rgba(255, 215, 0, 0.8)"; // Yellow boundary
+        cx2.lineWidth = 2;
+        cx2.setLineDash([10, 5]);
+        cx2.strokeRect(oArena.x, oArena.y - hArena, wArena, hArena);
+        cx2.setLineDash([]);
+        
+        // Arena Label
+        cx2.fillStyle = "rgba(255, 215, 0, 0.6)";
+        cx2.font = "bold 12px Segoe UI";
+        cx2.textAlign = "left";
+        cx2.textBaseline = "top";
+        cx2.fillText(`PRE-MARKED AREA (${ARENA_W/100}m x ${ARENA_H/100}m)`, oArena.x + 8, oArena.y - hArena + 8);
+      }
+
+      function drawSearched() {
+        const cp = GRID * sc;
+        // per-slave coloured searched cells
+        for (const s of Object.values(slaves)) {
+          if (!s.cells) continue;
+          const hex = s.color;
+          s.cells.forEach(k => {
+            const [gx, gy] = k.split(",").map(Number);
+            const cnt = Math.min(grid[k] || 1, 10);
+            const a = 0.12 + 0.22 * (cnt / 10);
+            cx2.fillStyle = hex + Math.round(a * 255).toString(16).padStart(2, "0");
+            const { x, y } = w2c(gx * GRID, (gy + 1) * GRID);
+            cx2.fillRect(x, y, cp, cp);
+          });
+        }
+      }
+
+      // convex hull (Graham scan) returning points array
+      function convexHull(pts) {
+        if (pts.length < 3) return pts;
+        pts = pts.slice().sort((a, b) => a.x !== b.x ? a.x - b.x : a.y - b.y);
+        const cross = (O, A, B) => (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
+        const lower = [];
+        for (const p of pts) {
+          while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0)
+            lower.pop();
+          lower.push(p);
+        }
+        const upper = [];
+        for (let i = pts.length - 1; i >= 0; i--) {
+          const p = pts[i];
+          while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0)
+            upper.pop();
+          upper.push(p);
+        }
+        upper.pop(); lower.pop();
+        return lower.concat(upper);
+      }
+
+      function drawDisasterBoundaries() {
+        const cp = GRID * sc;
+        for (const s of Object.values(slaves)) {
+          if (!s.cells || s.cells.size === 0) continue;
+          const cellArr = [...s.cells].map(k => { const [gx, gy] = k.split(",").map(Number); return { gx, gy }; });
+
+          // compute bounding box of cells
+          let minGx = Infinity, maxGx = -Infinity, minGy = Infinity, maxGy = -Infinity;
+          for (const c of cellArr) {
+            if (c.gx < minGx) minGx = c.gx;
+            if (c.gx > maxGx) maxGx = c.gx;
+            if (c.gy < minGy) minGy = c.gy;
+            if (c.gy > maxGy) maxGy = c.gy;
+          }
+
+          // white overlay on unsearched cells inside bounding box
+          const searchedSet = s.cells;
+          for (let gx = minGx; gx <= maxGx; gx++) {
+            for (let gy = minGy; gy <= maxGy; gy++) {
+              if (!searchedSet.has(`${gx},${gy}`)) {
+                const { x, y } = w2c(gx * GRID, (gy + 1) * GRID);
+                cx2.fillStyle = "rgba(255,255,255,0.18)";
+                cx2.fillRect(x, y, cp, cp);
+              }
+            }
+          }
+
+          // boundary: gather corner points of all cells for convex hull
+          const pts = [];
+          for (const { gx, gy } of cellArr) {
+            pts.push({ x: gx * GRID,         y: gy * GRID });
+            pts.push({ x: (gx + 1) * GRID,   y: gy * GRID });
+            pts.push({ x: gx * GRID,         y: (gy + 1) * GRID });
+            pts.push({ x: (gx + 1) * GRID,   y: (gy + 1) * GRID });
+          }
+          const hull = convexHull(pts);
+          if (hull.length < 2) continue;
+          cx2.beginPath();
+          hull.forEach((p, i) => {
+            const { x, y } = w2c(p.x, p.y);
+            i === 0 ? cx2.moveTo(x, y) : cx2.lineTo(x, y);
+          });
+          cx2.closePath();
+          cx2.strokeStyle = s.color;
+          cx2.lineWidth = 2;
+          cx2.setLineDash([6, 4]);
+          cx2.stroke();
+          cx2.setLineDash([]);
+        }
+      }
+
+      function drawArrow(x, y, deg, len, col) {
+        const r = (deg * Math.PI) / 180;
+        const ex = x + len * Math.sin(r),
+          ey = y - len * Math.cos(r);
+        const hl = Math.min(len * 0.4, 14),
+          ha = Math.PI / 6,
+          ba = r + Math.PI;
+        cx2.strokeStyle = col;
+        cx2.lineWidth = 2;
+        cx2.beginPath();
+        cx2.moveTo(x, y);
+        cx2.lineTo(ex, ey);
+        cx2.stroke();
+        cx2.beginPath();
+        cx2.moveTo(ex, ey);
+        cx2.lineTo(ex + hl * Math.sin(ba - ha), ey - hl * Math.cos(ba - ha));
+        cx2.moveTo(ex, ey);
+        cx2.lineTo(ex + hl * Math.sin(ba + ha), ey - hl * Math.cos(ba + ha));
+        cx2.stroke();
+      }
+
+      function drawStar(x, y, r, col) {
+        cx2.fillStyle = col;
+        cx2.beginPath();
+        for (let i = 0; i < 5; i++) {
+          const a = (i * 4 * Math.PI) / 5 - Math.PI / 2;
+          const ai = ((i * 4 + 2) * Math.PI) / 5 - Math.PI / 2;
+          i === 0
+            ? cx2.moveTo(x + r * Math.cos(a), y + r * Math.sin(a))
+            : cx2.lineTo(x + r * Math.cos(a), y + r * Math.sin(a));
+          cx2.lineTo(
+            x + (r / 2.5) * Math.cos(ai),
+            y + (r / 2.5) * Math.sin(ai),
+          );
+        }
+        cx2.closePath();
+        cx2.fill();
+        cx2.strokeStyle = "#CC6600";
+        cx2.lineWidth = 1;
+        cx2.stroke();
+      }
+
+      function render() {
+        cx2.clearRect(0, 0, cv.width, cv.height);
+        cx2.fillStyle = "#1f1d1d";
+        cx2.fillRect(0, 0, cv.width, cv.height);
+        drawGrid();
+        drawSearched();
+        drawDisasterBoundaries();
+
+        // Obstacles
+        for (const s of Object.values(slaves)) {
+          cx2.fillStyle = "#FF4444";
+          for (const ob of s.obs) {
+            const { x, y } = w2c(ob.x, ob.y);
+            cx2.beginPath();
+            cx2.arc(x, y, 2.5, 0, Math.PI * 2);
+            cx2.fill();
+          }
+        }
+
+        // Trails
+        cx2.globalAlpha = 0.45;
+        for (const s of Object.values(slaves)) {
+          if (s.trail.length < 2) continue;
+          cx2.strokeStyle = s.color;
+          cx2.lineWidth = 1.5;
+          cx2.beginPath();
+          s.trail.forEach((p, i) => {
+            const { x, y } = w2c(p.x, p.y);
+            i === 0 ? cx2.moveTo(x, y) : cx2.lineTo(x, y);
+          });
+          cx2.stroke();
+        }
+        cx2.globalAlpha = 1;
+
+        // Slaves
+        const now = Date.now();
+        for (const s of Object.values(slaves)) {
+          const { x, y } = w2c(s.x, s.y);
+          const stale = now - s.lastSeen > STALE;
+          const r = Math.max(8, (8 * sc) / 1.5);
+          if (!stale) {
+            cx2.beginPath();
+            cx2.arc(x, y, r + 5, 0, Math.PI * 2);
+            cx2.fillStyle = s.color + "28";
+            cx2.fill();
+          }
+          cx2.beginPath();
+          cx2.arc(x, y, r, 0, Math.PI * 2);
+          cx2.fillStyle = stale ? "#444" : s.color;
+          cx2.fill();
+          cx2.fillStyle = "#000";
+          cx2.font = `bold ${Math.max(8, r * 0.9)}px 'Segoe UI'`;
+          cx2.textAlign = "center";
+          cx2.textBaseline = "middle";
+          cx2.fillText("S" + s.id, x, y);
+          if (!stale)
+            drawArrow(x, y, s.yaw, Math.max(22, (28 * sc) / 1.5), s.color);
+        }
+
+        // Survivors — red dots
+        for (const sv of survivors) {
+          const { x, y } = w2c(sv.x, sv.y);
+          cx2.beginPath();
+          cx2.arc(x, y, 7, 0, Math.PI * 2);
+          cx2.fillStyle = "#FF2222";
+          cx2.fill();
+          cx2.strokeStyle = "#FF8888";
+          cx2.lineWidth = 1.5;
+          cx2.stroke();
+          cx2.fillStyle = "#fff";
+          cx2.font = "bold 8px Segoe UI";
+          cx2.textAlign = "center";
+          cx2.textBaseline = "middle";
+          cx2.fillText("!", x, y);
+        }
+
+        requestAnimationFrame(render);
+      }
+
+      // ── Sidebar update ──
+      function updateSidebar() {
+        const panel = document.getElementById("slaves"),
+          noSl = document.getElementById("no-sl"),
+          tasksList = document.getElementById("tasks-list");
+        const list = Object.values(slaves).sort((a, b) => a.id - b.id);
+        const now = Date.now();
+        noSl.style.display = list.length ? "none" : "";
+        if (list.length) tasksList.innerHTML = "";
+        
+        let totalCells = 0;
+        let searchedCells = Object.keys(grid).length;
+        
+        // Calculate Bounding Box to find Total Map Area (Section 2)
+        let minGx = Infinity, maxGx = -Infinity, minGy = Infinity, maxGy = -Infinity;
+        for (const k of Object.keys(grid)) {
+          const [gx, gy] = k.split(",").map(Number);
+          if (gx < minGx) minGx = gx;
+          if (gx > maxGx) maxGx = gx;
+          if (gy < minGy) minGy = gy;
+          if (gy > maxGy) maxGy = gy;
+        }
+        if (searchedCells > 0) {
+          totalCells = (maxGx - minGx + 1) * (maxGy - minGy + 1);
+        }
+
+        list.forEach((s) => {
+          const stale = now - s.lastSeen > STALE;
+          const age = stale
+            ? `${((now - s.lastSeen) / 1000).toFixed(0)}s ago`
+            : "live";
+            
+          // Section 1: Slave Horizontal Cards
+          let card = document.getElementById("sc" + s.id);
+          if (!card) {
+            card = document.createElement("div");
+            card.id = "sc" + s.id;
+            card.className = "sc";
+            panel.appendChild(card);
+          }
+          card.className = "sc" + (stale ? " stale" : "");
+          card.innerHTML = `<div class="sh">
+      <div class="sd" style="background:${s.color}"></div>
+      <span class="sn">Slave ${s.id}</span>
+      </div>
+      <div><span class="sage">${age}</span></div>
+      <div class="sg" style="margin-top:6px;">
+      <div class="sf"><span class="sl">X </span><span class="sv">${s.x.toFixed(1)} cm</span></div>
+      <div class="sf"><span class="sl">Y </span><span class="sv">${s.y.toFixed(1)} cm</span></div>
+      <div class="sf"><span class="sl">Yaw </span><span class="sv">${s.yaw.toFixed(1)}°</span></div>
+      <div class="sf"><span class="sl">Dist </span><span class="sv">${s.dist.toFixed(1)} cm</span></div>
+      </div>`;
+
+          // Section 3: Tasks List
+          let taskItem = document.createElement("div");
+          taskItem.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: var(--bg3); border-left: 3px solid " + s.color + "; padding: 8px; border-radius: 4px;";
+          taskItem.innerHTML = `
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:12px; font-weight:600;">S${s.id}</span>
+              <span style="font-size:10px; color:var(--dim);">${stale ? "Offline" : "Online"}</span>
+            </div>
+            <div style="font-size:10px; padding: 2px 6px; background: var(--bg2); border-radius: 4px; color: var(--accent);">${s.state}</div>
+          `;
+          tasksList.appendChild(taskItem);
+        });
+
+        // Section 2: Update Map Stats
+        document.getElementById("cv-cells").textContent = searchedCells;
+        document.getElementById("cv-total-cells").textContent = totalCells;
+        document.getElementById("cv-surv").textContent = survivors.length;
+        
+        const areaCovered = (searchedCells * GRID * GRID) / 10000;
+        const areaTotal = (totalCells * GRID * GRID) / 10000;
+        const areaRemain = Math.max(0, areaTotal - areaCovered);
+        
+        document.getElementById("cv-area").textContent = areaCovered.toFixed(2) + " m²";
+        document.getElementById("cv-area-remain").textContent = areaRemain.toFixed(2) + " m²";
+        
+        if (totalCells > 0) {
+          document.getElementById("cv-bar").style.width = Math.min(100, (searchedCells / totalCells) * 100) + "%";
+        } else {
+          document.getElementById("cv-bar").style.width = "0%";
+        }
+      }
+
+      // ── Toast ──
+      let tt;
+      function toast(m) {
+        const t = document.getElementById("toast");
+        t.textContent = m;
+        t.classList.add("show");
+        clearTimeout(tt);
+        tt = setTimeout(() => t.classList.remove("show"), 2500);
+      }
+
+      // ── Init ──
+      window.addEventListener("resize", resize);
+      resize();
+      render();
+      setInterval(updateSidebar, 250);
+      connectWS();
+    </script>
+  </body>
+</html>
