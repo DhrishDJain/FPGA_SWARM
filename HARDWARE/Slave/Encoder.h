@@ -8,7 +8,8 @@ class Encoder {
 private:
   uint8_t pinC1, pinC2;
   volatile long* encoderCount;
-  volatile long lastCount;
+
+  long lastCount;
   volatile int* lastC1State;
   float distancePerPulseMM;
 
@@ -33,20 +34,20 @@ public:
     int c1State = digitalRead(pinC1);
     int c2State = digitalRead(pinC2);
 
-    if (c1State != *lastC1State) {
-      if (c1State == HIGH) {
-        *encoderCount += (c2State == HIGH) ? 1 : -1;  // Swapped LOW/HIGH
-      } else {
-        *encoderCount += (c2State == LOW) ? 1 : -1;  // Swapped LOW/HIGH
-      }
+    // ISR fires ONLY on CHANGE — no need to check c1State != *lastC1State
+    if (c1State == HIGH) {
+      *encoderCount += (c2State != c1State) ? 1 : -1;
+    } else {
+      *encoderCount += (c2State == c1State) ? 1 : -1;
     }
     *lastC1State = c1State;
   }
 
 
+
   bool initialize() {
-    pinMode(pinC1, INPUT);
-    pinMode(pinC2, INPUT);
+    pinMode(pinC1, INPUT_PULLUP);
+    pinMode(pinC2, INPUT_PULLUP);
     delay(10);
 
     *lastC1State = digitalRead(pinC1);
@@ -59,20 +60,31 @@ public:
   }
 
   void update() {
-    long pulseDelta = *encoderCount - lastCount;
+    long currentCount;
 
-    if (pulseDelta != 0) {
-      float distanceMM = pulseDelta * distancePerPulseMM;
+    noInterrupts();
+    currentCount = *encoderCount;  // atomic snapshot
+    interrupts();
 
-      // Net distance (can be negative) - for position tracking
-      distanceTraveledCM += distanceMM / 10.0;  // Removed abs()!
+    long pulseDelta = currentCount - lastCount;
 
-      // Total distance (always positive) - like odometer
-      totalDistanceCM += abs(distanceMM) / 10.0;
-
-      lastCount = *encoderCount;
+    if (pulseDelta == 0) {
+      return;
     }
+
+    float distanceMM = pulseDelta * distancePerPulseMM;
+
+    distanceTraveledCM += distanceMM / 10.0;
+    totalDistanceCM += abs(distanceMM) / 10.0;
+
+    lastCount = currentCount;
+
+    // DEBUG
+    // Serial.printf("[ENC] count=%ld delta=%ld net=%.2fcm total=%.2fcm\n",
+    //               currentCount, pulseDelta,
+    //               distanceTraveledCM, totalDistanceCM);
   }
+
 
   void reset() {
     *encoderCount = 0;

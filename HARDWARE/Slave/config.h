@@ -2,8 +2,9 @@
 #define CONFIG_H
 // A0:DD:6C:0F:B7:A5
 // ==================== MAC ADDRESSES ====================
-#define ESP1_MAC {0xA0, 0xDD, 0x6C, 0x0F, 0xB7, 0xA5} // Companion
-#define ESP3_MAC {0xA0, 0xDD, 0x6C, 0x0F, 0xB7, 0xA4} // Slave
+#define ESP1_MAC {0xA0, 0xDD, 0x6C, 0x0F, 0xB7, 0xA4} // companion
+#define ESP2_MAC {0xA0, 0xDD, 0x6C, 0x0F, 0xB7, 0xA5} // slave 0
+#define ESP3_MAC {0x00, 0x4B, 0x12, 0x9A, 0xCB, 0x80} // Slave 1
 
 // ==================== I2C PINS ====================
 #define I2C_SDA 21
@@ -15,10 +16,10 @@
 #define MPU_I2C_ADDRESS 0x68
 
 // ==================== ENCODER PINS ====================
-#define ENCODER_C1 35
-#define ENCODER_C2 33
-#define PULSES_PER_REV 2199
-#define WHEEL_DIAMETER_MM 44.0
+#define ENCODER_C1 15
+#define ENCODER_C2 4
+#define PULSES_PER_REV 1813
+#define WHEEL_DIAMETER_MM 34.0   // was 44.0
 #define WHEEL_BASE_MM 150.0
 
 // ==================== MOTOR PINS (TB6612FNG) ====================
@@ -54,4 +55,4 @@
 #define NAV_BASE_SPEED       160    // forward speed during navigation (0-255)
 #define NAV_TURN_MAX         80     // max speed differential for turning
 
-#endif
+#endif

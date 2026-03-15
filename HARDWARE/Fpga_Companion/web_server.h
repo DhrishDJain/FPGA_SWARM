@@ -1,53 +1,50 @@
 #ifndef WEB_SERVER_H
 #define WEB_SERVER_H
 
-// Minimum bytes the old SensorPacket occupied (yaw+dist_cm+state+ts, packed
-// loosely ~24)
-#define SENSOR_PKT_MIN 20
-
-#include "../packet.h"
-#include <DNSServer.h>
-#include <ESPmDNS.h>
-#include <LittleFS.h>
+#include "packet.h"
 #include <WebServer.h>
 #include <WebSocketsServer.h>
+#include <DNSServer.h>
 #include <WiFi.h>
-#include <math.h>
-#include <stdio.h>
+#include <LittleFS.h>
 
 #define AP_SSID "SwarmCompanion"
 #define AP_PASSWORD "swarm1234"
 #define AP_CHANNEL 1
 
-WebServer webServer(80);
-WebSocketsServer wsServer(81);
-DNSServer dnsServer;
+// ✅ Pointers — constructed inside webserver_init() after scheduler starts
+static WebServer *webServer = nullptr;
+static WebSocketsServer *wsServer = nullptr;
+static DNSServer *dnsServer = nullptr;
 
-// Declared in main sketch
-extern void sendCommandTo(uint8_t idx, char cmd);
-extern void broadcastCommand(char cmd);
+// Forward declarations (defined in .ino)
+extern void sendCommandTo(uint8_t idx, char cmd, int speed);
+extern void broadcastCommand(char cmd, int speed);
 extern void sendTaskTo(uint8_t idx, char cmd, float tx, float ty);
 
-// ---- Forward sensor packet as JSON to all WS clients ----
+// ── Broadcast helpers ──────────────────────────────────────────
+
 void ws_broadcastSensor(const SensorPacket &pkt) {
-  char buf[220];
+  if (!wsServer) return;
+  char buf[256];
   snprintf(buf, sizeof(buf),
-           "{\"id\":%u,\"yaw\":%.2f,\"dist\":%.2f,\"x\":%.2f,\"y\":%.2f,"
-           "\"lidar\":%u,\"state\":\"%s\",\"ts\":%lu}",
-           pkt.slave_id, pkt.yaw, pkt.distance_cm, pkt.x, pkt.y, pkt.lidar_mm,
-           pkt.state, pkt.timestamp);
-  wsServer.broadcastTXT(buf);
-  // Serial.println(buf); // echo for Serial Monitor debugging
+           "{\"type\":\"sensor\",\"id\":%u,\"x\":%.1f,\"y\":%.1f,"
+           "\"yaw\":%.1f,\"dist\":%.1f,\"lidar\":%u,\"state\":\"%s\"}",
+           pkt.slave_id, pkt.x, pkt.y, pkt.yaw,
+           pkt.distance_cm, pkt.lidar_mm, pkt.state);
+  wsServer->broadcastTXT(buf);
 }
 
-// ---- Forward new map configuration (size, block) to all WS clients ----
 void ws_broadcastArena(int size, int blockSize) {
+  if (!wsServer) return;
   char buf[80];
-  snprintf(buf, sizeof(buf), "{\"type\":\"arena\",\"size\":%d,\"grid\":%d}", size, blockSize);
-  wsServer.broadcastTXT(buf);
+  snprintf(buf, sizeof(buf),
+           "{\"type\":\"arena\",\"size\":%d,\"grid\":%d}", size, blockSize);
+  wsServer->broadcastTXT(buf);
 }
 
-// ---- WebSocket event ----
+// ── WebSocket event handler ────────────────────────────────────
+
 void _wsEvent(uint8_t client, WStype_t type, uint8_t *payload, size_t length) {
   if (type == WStype_CONNECTED) {
     Serial.printf("[WS] Client %u connected\n", client);
@@ -57,151 +54,126 @@ void _wsEvent(uint8_t client, WStype_t type, uint8_t *payload, size_t length) {
     Serial.printf("[WS] Client %u disconnected\n", client);
     return;
   }
-  if (type != WStype_TEXT)
-    return;
-  String msg = String((char *)payload);
+  if (type != WStype_TEXT) return;
 
-  int cmdIdx = msg.indexOf("\"cmd\":\"");
-  if (cmdIdx < 0)
-    return;
-  char cmd = msg.charAt(cmdIdx + 7);
+  // Parse: {"type":"cmd","cmd":"f","target":"0"}
+  char *msg = (char *)payload;
 
-  int tgtIdx = msg.indexOf("\"target\":\"");
-  if (tgtIdx < 0) {
-    broadcastCommand(cmd);
-    return;
+  char *cmdPos = strstr(msg, "\"cmd\":");
+  char *targetPos = strstr(msg, "\"target\":");
+  if (!cmdPos || !targetPos) return;
+
+  // Extract cmd char
+  char *p = strchr(cmdPos, ':') + 1;
+  while (*p == ' ' || *p == '"') p++;
+  char cmd = *p;
+
+  // Extract target string
+  char targetStr[8] = { 0 };
+  p = strchr(targetPos, ':') + 1;
+  while (*p == ' ' || *p == '"') p++;
+  int i = 0;
+  while (*p && *p != '"' && *p != ',' && *p != '}' && i < 7)
+    targetStr[i++] = *p++;
+  targetStr[i] = '\0';
+
+  Serial.printf("[WS] target=%s cmd='%c'\n", targetStr, cmd);
+
+  if (strncmp(targetStr, "all", 3) == 0) {
+    broadcastCommand(cmd, 180);
+  } else {
+    sendCommandTo((uint8_t)atoi(targetStr), cmd, 180);
   }
-
-  String tgt = "";
-  int i = tgtIdx + 10;
-  while (i < (int)msg.length() && msg.charAt(i) != '"')
-    tgt += msg.charAt(i++);
-
-  if (tgt == "all")
-    broadcastCommand(cmd);
-  else
-    sendCommandTo((uint8_t)tgt.toInt(), cmd);
 }
 
-// ---- Serve any file from LittleFS ----
-void _serveFile(const String &path) {
+// ── File server ───────────────────────────────────────────────
+
+void _serveFile(const char *path) {
   if (!LittleFS.exists(path)) {
-    webServer.send(404, "text/plain",
-                   "File not found. Upload data/ via LittleFS.");
+    webServer->send(404, "text/plain",
+                    "File not found. Upload data/index.html via LittleFS.");
     return;
   }
   File f = LittleFS.open(path, "r");
-  String ct = "text/plain";
-  if (path.endsWith(".html"))
-    ct = "text/html";
-  else if (path.endsWith(".css"))
-    ct = "text/css";
-  else if (path.endsWith(".js"))
-    ct = "application/javascript";
-  webServer.streamFile(f, ct);
+  String ct = String(path).endsWith(".html") ? "text/html" : "text/plain";
+  webServer->streamFile(f, ct);
   f.close();
 }
 
-// ---- Init (call before esp_now_init) ----
+// ── Init ──────────────────────────────────────────────────────
+
 bool webserver_init() {
+  // Allocate after RTOS scheduler is running
+  webServer = new WebServer(80);
+  wsServer = new WebSocketsServer(81);
+  dnsServer = new DNSServer();
+
   if (!LittleFS.begin(true)) {
     Serial.println("[WEB] LittleFS mount failed");
     return false;
   }
 
-  WiFi.mode(WIFI_AP_STA); // AP for browser + STA for ESP-NOW receive
+  WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(AP_SSID, AP_PASSWORD, AP_CHANNEL);
-  Serial.print("[WEB] AP  MAC: ");
-  Serial.println(WiFi.softAPmacAddress());
-  Serial.print("[WEB] STA MAC: ");
-  Serial.println(WiFi.macAddress());
-  Serial.print("[WEB] AP  IP : ");
-  Serial.println(WiFi.softAPIP());
+  Serial.printf("[WEB] AP IP: %s\n", WiFi.softAPIP().toString().c_str());
 
-  webServer.on("/", HTTP_GET, []() { _serveFile("/index.html"); });
-
-  // /task – send autonomous navigation task to a slave
-  // Body JSON: {"slave":0,"cmd":"g","tx":100.0,"ty":50.0}
-  webServer.on("/task", HTTP_POST, []() {
-    if (!webServer.hasArg("plain")) {
-      webServer.send(400, "text/plain", "missing body");
-      return;
-    }
-    String body = webServer.arg("plain");
-    // simple JSON parse (no library needed for flat object)
-    auto extract = [&](const char *key, String &out) {
-      int i = body.indexOf(String('"') + key + '"');
-      if (i < 0) return false;
-      i = body.indexOf(':', i);
-      if (i < 0) return false;
-      i++;
-      while (i < (int)body.length() && (body[i] == ' ' || body[i] == '"')) i++;
-      int j = i;
-      while (j < (int)body.length() && body[j] != ',' && body[j] != '}' && body[j] != '"') j++;
-      out = body.substring(i, j);
-      return true;
-    };
-    String sSlave, sCmd, sTx, sTy;
-    extract("slave", sSlave);
-    extract("cmd",   sCmd);
-    extract("tx",    sTx);
-    extract("ty",    sTy);
-    uint8_t slaveIdx = (uint8_t)sSlave.toInt();
-    char    cmd      = sCmd.length() > 0 ? sCmd[0] : 'g';
-    float   tx       = sTx.toFloat();
-    float   ty       = sTy.toFloat();
-    sendTaskTo(slaveIdx, cmd, tx, ty);
-    webServer.send(200, "application/json",
-                   "{\"ok\":true,\"slave\":" + String(slaveIdx) +
-                   ",\"cmd\":\"" + cmd + "\",\"tx\":" + String(tx) +
-                   ",\"ty\":" + String(ty) + "}");
-  });
-  // /sim – sends one fake sensor packet to all WS clients (for UI testing)
-  webServer.on("/sim", HTTP_GET, []() {
-    static float t = 0;
-    t += 0.1f;
-    SensorPacket fake = {};
-    fake.slave_id = 0;
-    fake.yaw = fmod(t * 20.0f, 360.0f);
-    fake.distance_cm = t * 5.0f;
-    fake.x = 80.0f * cos(t * 0.3f);
-    fake.y = 80.0f * sin(t * 0.3f);
-    fake.lidar_mm = 1500;
-    strncpy(fake.state, "FWD", 9);
-    fake.timestamp = millis();
-    ws_broadcastSensor(fake);
-    webServer.send(200, "text/plain", "Simulated packet sent");
-  });
-
-  // Redirect every 404 / unknown URI to index so captive-portal works too
-  webServer.onNotFound([]() {
-    webServer.sendHeader("Location", "http://swarm.local/", true);
+  webServer->on("/", HTTP_GET, []() {
     _serveFile("/index.html");
   });
-  webServer.begin();
 
-  wsServer.begin();
-  wsServer.onEvent(_wsEvent);
+  // Web UI task endpoint: {"slave":0,"cmd":"g","tx":100,"ty":200}
+  webServer->on("/task", HTTP_POST, []() {
+    if (!webServer->hasArg("plain")) {
+      webServer->send(400, "text/plain", "missing body");
+      return;
+    }
+    const char *body = webServer->arg("plain").c_str();
 
-  // Captive-portal DNS: answer every query with our AP IP
-  dnsServer.start(53, "*", WiFi.softAPIP());
+    auto extract = [&](const char *key) -> float {
+      char search[24];
+      snprintf(search, sizeof(search), "\"%s\":", key);
+      const char *p = strstr(body, search);
+      if (!p) return 0.0f;
+      p = strchr(p, ':') + 1;
+      while (*p == ' ' || *p == '"') p++;
+      return atof(p);
+    };
 
-  // mDNS: accessible as http://swarm.local
-  if (MDNS.begin("swarm")) {
-    MDNS.addService("http", "tcp", 80);
-    Serial.println("[mDNS] swarm.local ready");
-  }
+    auto extractCmd = [&]() -> char {
+      const char *p = strstr(body, "\"cmd\":");
+      if (!p) return 's';
+      p = strchr(p, ':') + 1;
+      while (*p == ' ' || *p == '"') p++;
+      return *p;
+    };
 
-  Serial.println("[WEB] HTTP:80  WS:81  DNS:53  ready");
-  Serial.println("[WEB] Open: http://swarm.local  or  http://192.168.4.1");
+    uint8_t slaveIdx = (uint8_t)extract("slave");
+    char cmd = extractCmd();
+    float tx = extract("tx");
+    float ty = extract("ty");
+
+    sendTaskTo(slaveIdx, cmd, tx, ty);
+    webServer->send(200, "application/json", "{\"ok\":true}");
+  });
+
+  webServer->onNotFound([]() {
+    _serveFile("/index.html");
+  });
+  webServer->begin();
+
+  wsServer->begin();
+  wsServer->onEvent(_wsEvent);
+
+  dnsServer->start(53, "*", WiFi.softAPIP());
+
+  Serial.println("[WEB] Ready");
   return true;
 }
 
-// ---- Call every loop() ----
 void webserver_loop() {
-  dnsServer.processNextRequest();
-  webServer.handleClient();
-  wsServer.loop();
+  dnsServer->processNextRequest();
+  webServer->handleClient();
+  wsServer->loop();
 }
 
 #endif

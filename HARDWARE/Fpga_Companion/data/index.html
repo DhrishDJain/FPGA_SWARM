@@ -10,7 +10,7 @@
         --bg2: #242222;
         --bg3: #2a2727;
         --border: #423d3d;
-        --accent: #FFD700;
+        --accent: #ffd700;
         --text: #e0e0e0;
         --dim: #999999;
         --green: #00ff88;
@@ -387,7 +387,9 @@
         cursor: pointer;
         transition: background 0.15s;
       }
-      .nav-go:hover { background: #122012; }
+      .nav-go:hover {
+        background: #122012;
+      }
       .nav-stop {
         flex: 1;
         padding: 6px;
@@ -400,7 +402,9 @@
         cursor: pointer;
         transition: background 0.15s;
       }
-      .nav-stop:hover { background: #201212; }
+      .nav-stop:hover {
+        background: #201212;
+      }
 
       /* Legend */
       #leg {
@@ -477,17 +481,20 @@
 
       <div id="sb">
         <!-- Section 1: Each slave data arranged in a horizontal row -->
-        <div class="sec" style="flex-shrink: 0;">
+        <div class="sec" style="flex-shrink: 0">
           <div class="sec-title">1. Slave Data</div>
           <div id="slaves"><div id="no-sl">No slaves connected</div></div>
         </div>
         <!-- Section 2: Stats of map -->
-        <div class="sec" style="flex-shrink: 0;">
+        <div class="sec" style="flex-shrink: 0">
           <div class="sec-title">2. Map Stats</div>
           <div id="cov">
             <div class="cr">
               <span class="cl">Blocks Searched / Total</span
-              ><span class="cv"><span id="cv-cells">0</span> / <span id="cv-total-cells">0</span></span>
+              ><span class="cv"
+                ><span id="cv-cells">0</span> /
+                <span id="cv-total-cells">0</span></span
+              >
             </div>
             <div class="cr">
               <span class="cl">Survivors Found</span
@@ -507,46 +514,170 @@
           </div>
         </div>
         <!-- Section 3: Slaves and their current task -->
-        <div class="sec" style="flex: 1; overflow-y: auto;">
+        <div class="sec" style="flex: 1; overflow-y: auto">
           <div class="sec-title">3. Slaves & Current Task</div>
-          <div id="tasks-list" style="padding: 9px 12px; display: flex; flex-direction: column; gap: 8px;">
-            <div style="color: var(--dim); font-size: 11px; text-align: center;">No active tasks</div>
+          <div
+            id="tasks-list"
+            style="
+              padding: 9px 12px;
+              display: flex;
+              flex-direction: column;
+              gap: 8px;
+            "
+          >
+            <div style="color: var(--dim); font-size: 11px; text-align: center">
+              No active tasks
+            </div>
           </div>
         </div>
         <!-- Keep Legend and Manual controls at the bottom implicitly or condensed -->
-        <div style="border-top: 1px solid var(--border); flex-shrink: 0;">
+        <div style="border-top: 1px solid var(--border); flex-shrink: 0">
           <div class="sec-title">Legend & Controls</div>
-          <div id="leg" style="padding: 7px 12px; display: flex; flex-wrap: wrap; gap: 7px; border-bottom: 1px solid var(--border);">
-            <div class="li"><div class="ls" style="background: rgba(255,215,0,0.3); border: 1.5px dashed var(--accent)"></div>Slave area</div>
-            <div class="li"><div class="ls" style="background: rgba(255,255,255,0.18)"></div>Unsearched</div>
-            <div class="li"><div class="ld" style="background: #ff4444"></div>Obstacle</div>
-            <div class="li"><div class="ld" style="background: #ff2222"></div>Survivor</div>
+          <div
+            id="leg"
+            style="
+              padding: 7px 12px;
+              display: flex;
+              flex-wrap: wrap;
+              gap: 7px;
+              border-bottom: 1px solid var(--border);
+            "
+          >
+            <div class="li">
+              <div
+                class="ls"
+                style="
+                  background: rgba(255, 215, 0, 0.3);
+                  border: 1.5px dashed var(--accent);
+                "
+              ></div>
+              Slave area
+            </div>
+            <div class="li">
+              <div
+                class="ls"
+                style="background: rgba(255, 255, 255, 0.18)"
+              ></div>
+              Unsearched
+            </div>
+            <div class="li">
+              <div class="ld" style="background: #ff4444"></div>
+              Obstacle
+            </div>
+            <div class="li">
+              <div class="ld" style="background: #ff2222"></div>
+              Survivor
+            </div>
           </div>
-          <div style="padding: 9px 12px; display: flex; gap: 8px;">
-            <button class="srvbtn" id="srvbtn" onclick="toggleSurvivorMode()" style="flex: 1;">
+          <div style="padding: 9px 12px; display: flex; gap: 8px">
+            <button
+              class="srvbtn"
+              id="srvbtn"
+              onclick="toggleSurvivorMode()"
+              style="flex: 1"
+            >
               ★ Mark Survivor
             </button>
-            <button class="srvbtn" style="flex: 1;" onclick="document.getElementById('man-cmd').style.display = document.getElementById('man-cmd').style.display === 'none' ? 'flex' : 'none'">
+            <button
+              class="srvbtn"
+              style="flex: 1"
+              onclick="
+                document.getElementById('man-cmd').style.display =
+                  document.getElementById('man-cmd').style.display === 'none'
+                    ? 'flex'
+                    : 'none'
+              "
+            >
               Manual Tools
             </button>
           </div>
-          <div id="man-cmd" style="padding: 0 12px 9px 12px; display: none; flex-direction: column; gap: 8px;">
-            <div style="margin-bottom:8px">
+          <div
+            id="man-cmd"
+            style="
+              padding: 0 12px 9px 12px;
+              display: none;
+              flex-direction: column;
+              gap: 8px;
+            "
+          >
+            <div style="margin-bottom: 8px">
               <div class="trow">
-                <select id="tsel" style="width:50%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:3px;border-radius:4px;font-size:11px"><option value="all">All Slaves</option></select>
-                <select id="nav-tsel" style="width:50%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:3px;border-radius:4px;font-size:11px"><option value="0">Slave 0</option></select>
+                <select
+                  id="tsel"
+                  style="
+                    width: 50%;
+                    background: var(--bg3);
+                    border: 1px solid var(--border);
+                    color: var(--text);
+                    padding: 3px;
+                    border-radius: 4px;
+                    font-size: 11px;
+                  "
+                >
+                  <option value="all">All Slaves</option>
+                </select>
+                <select
+                  id="nav-tsel"
+                  style="
+                    width: 50%;
+                    background: var(--bg3);
+                    border: 1px solid var(--border);
+                    color: var(--text);
+                    padding: 3px;
+                    border-radius: 4px;
+                    font-size: 11px;
+                  "
+                >
+                  <option value="0">Slave 0</option>
+                </select>
               </div>
             </div>
-            <div style="display:flex; gap:10px;">
-              <div class="dpad" style="flex:1;">
-                <div class="db emp"></div><div class="db" onclick="sendCmd('f')">▲</div><div class="db emp"></div>
-                <div class="db" onclick="sendCmd('l')">◄</div><div class="db stop" onclick="sendCmd('s')">■</div><div class="db" onclick="sendCmd('r')">►</div>
-                <div class="db emp"></div><div class="db" onclick="sendCmd('b')">▼</div><div class="db emp"></div>
+            <div style="display: flex; gap: 10px">
+              <div class="dpad" style="flex: 1">
+                <div class="db emp"></div>
+                <div class="db" onclick="sendCmd('f')">▲</div>
+                <div class="db emp"></div>
+                <div class="db" onclick="sendCmd('l')">◄</div>
+                <div class="db stop" onclick="sendCmd('s')">■</div>
+                <div class="db" onclick="sendCmd('r')">►</div>
+                <div class="db emp"></div>
+                <div class="db" onclick="sendCmd('b')">▼</div>
+                <div class="db emp"></div>
               </div>
-              <div style="flex:1; display:flex; flex-direction:column; gap:4px;">
-                <input class="nav-inp" id="nav-tx" type="number" value="0" step="10" placeholder="X cm">
-                <input class="nav-inp" id="nav-ty" type="number" value="0" step="10" placeholder="Y cm">
-                <div style="display:flex; gap:4px;"><button class="nav-go" onclick="assignBlock()" style="padding:4px;font-size:10px;flex:1;">Go</button><button class="nav-stop" onclick="stopNav()" style="padding:4px;font-size:10px;flex:1;">Stop</button></div>
+              <div
+                style="flex: 1; display: flex; flex-direction: column; gap: 4px"
+              >
+                <input
+                  class="nav-inp"
+                  id="nav-tx"
+                  type="number"
+                  value="0"
+                  step="10"
+                  placeholder="X cm"
+                />
+                <input
+                  class="nav-inp"
+                  id="nav-ty"
+                  type="number"
+                  value="0"
+                  step="10"
+                  placeholder="Y cm"
+                />
+                <div style="display: flex; gap: 4px">
+                  <button
+                    class="nav-go"
+                    onclick="assignBlock()"
+                    style="padding: 4px; font-size: 10px; flex: 1"
+                  >
+                    Go</button
+                  ><button
+                    class="nav-stop"
+                    onclick="stopNav()"
+                    style="padding: 4px; font-size: 10px; flex: 1"
+                  >
+                    Stop
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -569,11 +700,11 @@
       const TRAIL = 500,
         LIDAR_MAX = 500,
         STALE = 5000;
-        
+
       // Pre-marked Area Boundary configuration (in cm)
       let ARENA_W = 3000,
-          ARENA_H = 3000,
-          GRID = 30;
+        ARENA_H = 3000,
+        GRID = 30;
 
       // ── State ──
       let slaves = {},
@@ -601,12 +732,14 @@
           try {
             const data = JSON.parse(e.data);
             if (data.type === "arena") {
-               ARENA_W = data.size;
-               ARENA_H = data.size;
-               GRID = data.grid;
-               toast(`Arena updated: ${data.size/100}m x ${data.size/100}m, Block: ${data.grid}cm`);
+              ARENA_W = data.size;
+              ARENA_H = data.size;
+              GRID = data.grid;
+              toast(
+                `Arena updated: ${data.size / 100}m x ${data.size / 100}m, Block: ${data.grid}cm`,
+              );
             } else {
-               onPacket(data);
+              onPacket(data);
             }
           } catch (e) {}
         };
@@ -699,8 +832,8 @@
       // ── Autonomous nav assignment ──
       function assignBlock() {
         const slave = document.getElementById("nav-tsel").value;
-        const tx    = parseFloat(document.getElementById("nav-tx").value) || 0;
-        const ty    = parseFloat(document.getElementById("nav-ty").value) || 0;
+        const tx = parseFloat(document.getElementById("nav-tx").value) || 0;
+        const ty = parseFloat(document.getElementById("nav-ty").value) || 0;
         fetch("/task", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -716,7 +849,12 @@
         fetch("/task", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ slave: parseInt(slave), cmd: "s", tx: 0, ty: 0 }),
+          body: JSON.stringify({
+            slave: parseInt(slave),
+            cmd: "s",
+            tx: 0,
+            ty: 0,
+          }),
         })
           .then(() => toast(`■ Slave ${slave} nav stopped`))
           .catch(() => toast("Stop send failed"));
@@ -813,7 +951,7 @@
         cx2.beginPath();
         cx2.rect(oArena.x, oArena.y - hArena, wArena, hArena);
         cx2.clip();
-        
+
         cx2.strokeStyle = "rgba(255, 255, 255, 0.4)"; // Bright, semi-transparent white
         cx2.lineWidth = 1;
         cx2.beginPath();
@@ -832,7 +970,7 @@
           cx2.lineTo(endPt.x, endPt.y);
         }
         cx2.stroke();
-        
+
         cx2.restore(); // remove clipping
         // ---------------------------------------------
 
@@ -893,13 +1031,17 @@
         cx2.setLineDash([10, 5]);
         cx2.strokeRect(oArena.x, oArena.y - hArena, wArena, hArena);
         cx2.setLineDash([]);
-        
+
         // Arena Label
         cx2.fillStyle = "rgba(255, 215, 0, 0.6)";
         cx2.font = "bold 12px Segoe UI";
         cx2.textAlign = "left";
         cx2.textBaseline = "top";
-        cx2.fillText(`PRE-MARKED AREA (${ARENA_W/100}m x ${ARENA_H/100}m)`, oArena.x + 8, oArena.y - hArena + 8);
+        cx2.fillText(
+          `PRE-MARKED AREA (${ARENA_W / 100}m x ${ARENA_H / 100}m)`,
+          oArena.x + 8,
+          oArena.y - hArena + 8,
+        );
       }
 
       function drawSearched() {
@@ -908,11 +1050,15 @@
         for (const s of Object.values(slaves)) {
           if (!s.cells) continue;
           const hex = s.color;
-          s.cells.forEach(k => {
+          s.cells.forEach((k) => {
             const [gx, gy] = k.split(",").map(Number);
             const cnt = Math.min(grid[k] || 1, 10);
             const a = 0.12 + 0.22 * (cnt / 10);
-            cx2.fillStyle = hex + Math.round(a * 255).toString(16).padStart(2, "0");
+            cx2.fillStyle =
+              hex +
+              Math.round(a * 255)
+                .toString(16)
+                .padStart(2, "0");
             const { x, y } = w2c(gx * GRID, (gy + 1) * GRID);
             cx2.fillRect(x, y, cp, cp);
           });
@@ -922,22 +1068,30 @@
       // convex hull (Graham scan) returning points array
       function convexHull(pts) {
         if (pts.length < 3) return pts;
-        pts = pts.slice().sort((a, b) => a.x !== b.x ? a.x - b.x : a.y - b.y);
-        const cross = (O, A, B) => (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
+        pts = pts.slice().sort((a, b) => (a.x !== b.x ? a.x - b.x : a.y - b.y));
+        const cross = (O, A, B) =>
+          (A.x - O.x) * (B.y - O.y) - (A.y - O.y) * (B.x - O.x);
         const lower = [];
         for (const p of pts) {
-          while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0)
+          while (
+            lower.length >= 2 &&
+            cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0
+          )
             lower.pop();
           lower.push(p);
         }
         const upper = [];
         for (let i = pts.length - 1; i >= 0; i--) {
           const p = pts[i];
-          while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0)
+          while (
+            upper.length >= 2 &&
+            cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0
+          )
             upper.pop();
           upper.push(p);
         }
-        upper.pop(); lower.pop();
+        upper.pop();
+        lower.pop();
         return lower.concat(upper);
       }
 
@@ -945,10 +1099,16 @@
         const cp = GRID * sc;
         for (const s of Object.values(slaves)) {
           if (!s.cells || s.cells.size === 0) continue;
-          const cellArr = [...s.cells].map(k => { const [gx, gy] = k.split(",").map(Number); return { gx, gy }; });
+          const cellArr = [...s.cells].map((k) => {
+            const [gx, gy] = k.split(",").map(Number);
+            return { gx, gy };
+          });
 
           // compute bounding box of cells
-          let minGx = Infinity, maxGx = -Infinity, minGy = Infinity, maxGy = -Infinity;
+          let minGx = Infinity,
+            maxGx = -Infinity,
+            minGy = Infinity,
+            maxGy = -Infinity;
           for (const c of cellArr) {
             if (c.gx < minGx) minGx = c.gx;
             if (c.gx > maxGx) maxGx = c.gx;
@@ -971,10 +1131,10 @@
           // boundary: gather corner points of all cells for convex hull
           const pts = [];
           for (const { gx, gy } of cellArr) {
-            pts.push({ x: gx * GRID,         y: gy * GRID });
-            pts.push({ x: (gx + 1) * GRID,   y: gy * GRID });
-            pts.push({ x: gx * GRID,         y: (gy + 1) * GRID });
-            pts.push({ x: (gx + 1) * GRID,   y: (gy + 1) * GRID });
+            pts.push({ x: gx * GRID, y: gy * GRID });
+            pts.push({ x: (gx + 1) * GRID, y: gy * GRID });
+            pts.push({ x: gx * GRID, y: (gy + 1) * GRID });
+            pts.push({ x: (gx + 1) * GRID, y: (gy + 1) * GRID });
           }
           const hull = convexHull(pts);
           if (hull.length < 2) continue;
@@ -1122,12 +1282,15 @@
         const now = Date.now();
         noSl.style.display = list.length ? "none" : "";
         if (list.length) tasksList.innerHTML = "";
-        
+
         let totalCells = 0;
         let searchedCells = Object.keys(grid).length;
-        
+
         // Calculate Bounding Box to find Total Map Area (Section 2)
-        let minGx = Infinity, maxGx = -Infinity, minGy = Infinity, maxGy = -Infinity;
+        let minGx = Infinity,
+          maxGx = -Infinity,
+          minGy = Infinity,
+          maxGy = -Infinity;
         for (const k of Object.keys(grid)) {
           const [gx, gy] = k.split(",").map(Number);
           if (gx < minGx) minGx = gx;
@@ -1144,7 +1307,7 @@
           const age = stale
             ? `${((now - s.lastSeen) / 1000).toFixed(0)}s ago`
             : "live";
-            
+
           // Section 1: Slave Horizontal Cards
           let card = document.getElementById("sc" + s.id);
           if (!card) {
@@ -1168,7 +1331,10 @@
 
           // Section 3: Tasks List
           let taskItem = document.createElement("div");
-          taskItem.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: var(--bg3); border-left: 3px solid " + s.color + "; padding: 8px; border-radius: 4px;";
+          taskItem.style.cssText =
+            "display: flex; align-items: center; justify-content: space-between; background: var(--bg3); border-left: 3px solid " +
+            s.color +
+            "; padding: 8px; border-radius: 4px;";
           taskItem.innerHTML = `
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-size:12px; font-weight:600;">S${s.id}</span>
@@ -1183,16 +1349,19 @@
         document.getElementById("cv-cells").textContent = searchedCells;
         document.getElementById("cv-total-cells").textContent = totalCells;
         document.getElementById("cv-surv").textContent = survivors.length;
-        
+
         const areaCovered = (searchedCells * GRID * GRID) / 10000;
         const areaTotal = (totalCells * GRID * GRID) / 10000;
         const areaRemain = Math.max(0, areaTotal - areaCovered);
-        
-        document.getElementById("cv-area").textContent = areaCovered.toFixed(2) + " m²";
-        document.getElementById("cv-area-remain").textContent = areaRemain.toFixed(2) + " m²";
-        
+
+        document.getElementById("cv-area").textContent =
+          areaCovered.toFixed(2) + " m²";
+        document.getElementById("cv-area-remain").textContent =
+          areaRemain.toFixed(2) + " m²";
+
         if (totalCells > 0) {
-          document.getElementById("cv-bar").style.width = Math.min(100, (searchedCells / totalCells) * 100) + "%";
+          document.getElementById("cv-bar").style.width =
+            Math.min(100, (searchedCells / totalCells) * 100) + "%";
         } else {
           document.getElementById("cv-bar").style.width = "0%";
         }

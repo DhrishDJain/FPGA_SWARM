@@ -3,39 +3,44 @@
 
 #include <stdint.h>
 
-// Command packet: Companion → Slave (manual drive)
-typedef struct {
-  char command; // 'f'=forward, 'b'=backward, 'l'=left, 'r'=right, 's'=stop
-  int speed;    // 0-255
-  unsigned long timestamp;
+#define PACKET_SYNC 0xAA
+
+typedef struct __attribute__((packed)) {
+  uint8_t sync;
+  char command; // 'f','b','l','r','s'
+  int16_t speed;
+  uint32_t timestamp;
 } CommandPacket;
 
-// Task packet: Companion → Slave (autonomous nav)
-typedef struct {
-  char command;        // 'g'=goto target, 's'=stop navigation
-  float tx;            // target X (cm)
-  float ty;            // target Y (cm)
-  unsigned long timestamp;
+typedef struct __attribute__((packed)) {
+  uint8_t sync;
+  char command; // 'a'=area, 'g'=goto, 's'=stop
+  float startX;
+  float startY;
+  uint16_t blocksX;
+  uint16_t blocksY;
+  float blockSize;
+  uint32_t timestamp;
 } TaskPacket;
 
-// Sensor packet: Slave → Companion
-typedef struct {
-  uint8_t slave_id;  // unique slave index (0-based)
-  float yaw;         // degrees from MPU6050 DMP
-  float distance_cm; // net distance from encoder
-  float x;           // dead-reckoned X position (cm)
-  float y;           // dead-reckoned Y position (cm)
-  uint16_t lidar_mm; // reserved (unused for now)
-  char state[10];    // motor/nav state string
-  unsigned long timestamp;
+typedef struct __attribute__((packed)) {
+  uint8_t sync;
+  uint8_t slave_id;
+  float yaw;
+  float distance_cm;
+  float x;
+  float y;
+  uint16_t lidar_mm;
+  char state[12];
+  uint32_t timestamp;
 } SensorPacket;
 
-// Survivor packet: Slave → Companion (detection deferred, stub)
-typedef struct {
+typedef struct __attribute__((packed)) {
+  uint8_t sync;
   uint8_t slave_id;
   float x;
   float y;
-  unsigned long timestamp;
+  uint32_t timestamp;
 } SurvivorPacket;
 
 #endif
