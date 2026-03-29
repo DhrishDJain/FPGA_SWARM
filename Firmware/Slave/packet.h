@@ -27,10 +27,12 @@ typedef struct __attribute__((packed)) {
   uint8_t sync;
   uint8_t slave_id;
   float yaw;
+  float pitch;
+  float roll;
   float distance_cm;
   float x;
   float y;
-  uint16_t lidar_mm;
+  uint16_t ultrasonic_mm;
   char state[12];
   uint32_t timestamp;
 } SensorPacket;

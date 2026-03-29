@@ -753,10 +753,14 @@
             x: 0,
             y: 0,
             yaw: 0,
+            pitch: 0,
+            roll: 0,
             dist: 0,
-            lidar: 0,
+            ultrasonic: 0,
             state: "?",
             lastSeen: 0,
+            targetX: 0,
+            targetY: 0,
             trail: [],
             obs: [],
             color: COLORS[id % COLORS.length],
@@ -764,18 +768,25 @@
           addTargetOption(id);
         }
         const s = slaves[id];
+        if (p.type === "task") {
+            s.targetX = p.tx;
+            s.targetY = p.ty;
+            return;
+        }
         Object.assign(s, {
           x: p.x ?? s.x,
           y: p.y ?? s.y,
           yaw: p.yaw ?? s.yaw,
+          pitch: p.pitch ?? s.pitch,
+          roll: p.roll ?? s.roll,
           dist: p.dist ?? s.dist,
-          lidar: p.lidar ?? s.lidar,
+          ultrasonic: p.ultrasonic ?? s.ultrasonic,
           state: p.state ?? s.state,
           lastSeen: Date.now(),
         });
         s.trail.push({ x: s.x, y: s.y });
         if (s.trail.length > TRAIL) s.trail.shift();
-        const lcm = s.lidar / 10;
+        const lcm = s.ultrasonic / 10;
         if (lcm > 5 && lcm < LIDAR_MAX) {
           const r = (s.yaw * Math.PI) / 180;
           s.obs.push({
@@ -1326,21 +1337,52 @@
       <div class="sf"><span class="sl">X </span><span class="sv">${s.x.toFixed(1)} cm</span></div>
       <div class="sf"><span class="sl">Y </span><span class="sv">${s.y.toFixed(1)} cm</span></div>
       <div class="sf"><span class="sl">Yaw </span><span class="sv">${s.yaw.toFixed(1)}°</span></div>
+      <div class="sf"><span class="sl">Pitch</span><span class="sv">${(s.pitch || 0).toFixed(1)}°</span></div>
+      <div class="sf"><span class="sl">Roll </span><span class="sv">${(s.roll || 0).toFixed(1)}°</span></div>
       <div class="sf"><span class="sl">Dist </span><span class="sv">${s.dist.toFixed(1)} cm</span></div>
       </div>`;
 
           // Section 3: Tasks List
+          let statusText = s.state;
+          if (s.state === 'TURNING' || s.state === 'NAVIGATING' || s.state === 'FPGA_AREA') {
+             let dx = s.targetX - s.x;
+             let dy = s.targetY - s.y;
+             let targetYaw = Math.atan2(dx, dy) * 180 / Math.PI; 
+             
+             let diff = targetYaw - s.yaw;
+             while(diff <= -180) diff += 360;
+             while(diff > 180) diff -= 360;
+             
+             let action = s.state;
+             if (Math.abs(diff) > 5) {
+                 let dir = diff > 0 ? "right" : "left";
+                 action = `Turning ${dir} by ${Math.abs(diff).toFixed(0)}°`;
+             } else {
+                 if (s.state !== 'TURNING') {
+                     action = `Moving forward`;
+                 }
+             }
+             statusText = `<span style="color:#aaddff">${action}</span> 🎯 <span style="color:var(--dim)">(${s.targetX.toFixed(1)}, ${s.targetY.toFixed(1)})</span>`;
+          } else if (s.state === 'ARRIVED') {
+             statusText = `<span style="color:#aaddff">Arrived at</span> 🎯 <span style="color:var(--dim)">(${s.targetX.toFixed(1)}, ${s.targetY.toFixed(1)})</span>`;
+          } else if (s.state === 'IDLE' && s.targetX !== undefined) {
+             statusText = `<span style="color:var(--dim)">Last Target: (${(s.targetX||0).toFixed(1)}, ${(s.targetY||0).toFixed(1)})</span>`;
+          }
+
           let taskItem = document.createElement("div");
           taskItem.style.cssText =
-            "display: flex; align-items: center; justify-content: space-between; background: var(--bg3); border-left: 3px solid " +
+            "display: flex; flex-direction: column; gap: 4px; background: var(--bg3); border-left: 3px solid " +
             s.color +
             "; padding: 8px; border-radius: 4px;";
           taskItem.innerHTML = `
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="font-size:12px; font-weight:600;">S${s.id}</span>
-              <span style="font-size:10px; color:var(--dim);">${stale ? "Offline" : "Online"}</span>
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:12px; font-weight:600;">S${s.id}</span>
+                <span style="font-size:10px; color:var(--dim);">${stale ? "Offline" : "Online"}</span>
+              </div>
+              <div style="font-size:10px; padding: 2px 6px; background: var(--bg2); border-radius: 4px; color: var(--accent); margin-left: auto;">${s.state}</div>
             </div>
-            <div style="font-size:10px; padding: 2px 6px; background: var(--bg2); border-radius: 4px; color: var(--accent);">${s.state}</div>
+            <div style="font-size:11px; padding-top: 2px;">${statusText}</div>
           `;
           tasksList.appendChild(taskItem);
         });

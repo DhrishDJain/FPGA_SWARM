@@ -6,7 +6,7 @@
 
 class Encoder {
 private:
-  uint8_t pinC1, pinC2;
+  uint8_t pinC1, pinC2; 
   volatile long* encoderCount;
 
   long lastCount;
@@ -33,13 +33,10 @@ public:
   void IRAM_ATTR handleInterrupt() {
     int c1State = digitalRead(pinC1);
     int c2State = digitalRead(pinC2);
-
-    // ISR fires ONLY on CHANGE — no need to check c1State != *lastC1State
-    if (c1State == HIGH) {
-      *encoderCount += (c2State != c1State) ? 1 : -1;
-    } else {
-      *encoderCount += (c2State == c1State) ? 1 : -1;
-    }
+    // Direction = XOR(C1, C2) — same formula for BOTH rising and falling edges.
+    // Old code used (c2==c1) on falling edge which is the inverse, causing each
+    // rising +1 to be cancelled by a falling -1, netting zero forever.
+    *encoderCount += (c1State ^ c2State) ? 1 : -1;
     *lastC1State = c1State;
   }
 

@@ -29,9 +29,9 @@ void ws_broadcastSensor(const SensorPacket &pkt) {
   char buf[256];
   snprintf(buf, sizeof(buf),
            "{\"type\":\"sensor\",\"id\":%u,\"x\":%.1f,\"y\":%.1f,"
-           "\"yaw\":%.1f,\"dist\":%.1f,\"lidar\":%u,\"state\":\"%s\"}",
-           pkt.slave_id, pkt.x, pkt.y, pkt.yaw,
-           pkt.distance_cm, pkt.lidar_mm, pkt.state);
+           "\"yaw\":%.1f,\"pitch\":%.1f,\"roll\":%.1f,\"dist\":%.1f,\"ultrasonic\":%u,\"state\":\"%s\"}",
+           pkt.slave_id, pkt.x, pkt.y, pkt.yaw, pkt.pitch, pkt.roll,
+           pkt.distance_cm, pkt.ultrasonic_mm, pkt.state);
   wsServer->broadcastTXT(buf);
 }
 
@@ -40,6 +40,15 @@ void ws_broadcastArena(int size, int blockSize) {
   char buf[80];
   snprintf(buf, sizeof(buf),
            "{\"type\":\"arena\",\"size\":%d,\"grid\":%d}", size, blockSize);
+  wsServer->broadcastTXT(buf);
+}
+
+void ws_broadcastTask(uint8_t slave_id, float tx, float ty) {
+  if (!wsServer) return;
+  char buf[128];
+  snprintf(buf, sizeof(buf),
+           "{\"type\":\"task\",\"id\":%u,\"tx\":%.1f,\"ty\":%.1f}",
+           slave_id, tx, ty);
   wsServer->broadcastTXT(buf);
 }
 

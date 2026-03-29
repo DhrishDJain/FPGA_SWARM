@@ -97,8 +97,8 @@ public:
       digitalWrite(rightIN2, LOW);
       ledcWrite(rightPWM, constrain(rightSpeed, 0, 255));
     } else {
-      digitalWrite(rightIN1, HIGH);
-      digitalWrite(rightIN2, LOW);
+      digitalWrite(rightIN1, LOW);
+      digitalWrite(rightIN2, HIGH);
       ledcWrite(rightPWM, constrain(-rightSpeed, 0, 255));
     }
 

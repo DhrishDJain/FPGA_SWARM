@@ -75,8 +75,8 @@ public:
       pitch = ypr[1] * 180.0 / PI;
       roll = ypr[2] * 180.0 / PI;
 
-      // while (yaw < 0) yaw += 360.0;
-      // while (yaw >= 360.0) yaw -= 360.0;
+      while (yaw < 0) yaw += 360.0;
+      while (yaw >= 360.0) yaw -= 360.0;
 
       dataReady = true;
       *mpuInterrupt = false;
